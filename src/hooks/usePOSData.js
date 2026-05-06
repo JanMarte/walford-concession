@@ -14,7 +14,6 @@ export function usePOSData() {
   const [inventory, setInventory] = useState([]);
   const [history, setHistory] = useState([]);
 
-  // 1. INITIALIZE DATA 
   useEffect(() => {
     const savedInventory = localStorage.getItem('pos_inventory');
     const savedHistory = localStorage.getItem('pos_history');
@@ -31,7 +30,6 @@ export function usePOSData() {
     }
   }, []);
 
-  // 2. CHECKOUT SYNC FUNCTION
   const confirmTransaction = (cartItems, cartTotal) => {
     const updatedInventory = inventory.map(item => {
       const amountInCart = cartItems.filter(cartItem => cartItem.id === item.id).length;
@@ -56,7 +54,6 @@ export function usePOSData() {
     localStorage.setItem('pos_history', JSON.stringify(updatedHistory));
   };
 
-  // 3. SCANNER FUNCTION: Add or Restock
   const saveInventoryItem = (newItem, isRestock) => {
     let updatedInventory;
     
@@ -72,7 +69,6 @@ export function usePOSData() {
     localStorage.setItem('pos_inventory', JSON.stringify(updatedInventory));
   };
 
-  // 4. DASHBOARD FUNCTION: Manual Update
   const updateItem = (updatedItem) => {
     const newInventory = inventory.map(item => 
       item.id === updatedItem.id ? updatedItem : item
@@ -81,20 +77,57 @@ export function usePOSData() {
     localStorage.setItem('pos_inventory', JSON.stringify(newInventory));
   };
 
-  // 5. DASHBOARD FUNCTION: Delete Item
   const deleteItem = (itemId) => {
     const newInventory = inventory.filter(item => item.id !== itemId);
     setInventory(newInventory);
     localStorage.setItem('pos_inventory', JSON.stringify(newInventory));
   };
 
-  // 6. RETURN ALL POWERS
+  const exportData = () => {
+    const data = {
+      inventory: inventory,
+      history: history
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `concession-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const importData = (jsonString) => {
+    try {
+      const parsedData = JSON.parse(jsonString);
+      
+      if (parsedData.inventory && parsedData.history) {
+        setInventory(parsedData.inventory);
+        setHistory(parsedData.history);
+        
+        localStorage.setItem('pos_inventory', JSON.stringify(parsedData.inventory));
+        localStorage.setItem('pos_history', JSON.stringify(parsedData.history));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Failed to parse backup file", error);
+      return false; 
+    }
+  };
+
   return { 
     inventory, 
     history, 
     confirmTransaction, 
     saveInventoryItem, 
     updateItem, 
-    deleteItem 
+    deleteItem,
+    exportData,
+    importData
   };
 }
