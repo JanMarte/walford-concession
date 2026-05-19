@@ -9,7 +9,6 @@ const DEFAULT_INVENTORY = [
   { id: '6', name: "Ring Pop", price: 1.00, stock: 50, barcode: "", category: "Sweets" },
 ];
 
-// Helper to auto-migrate old items that didn't have a category saved
 const guessCategory = (itemName) => {
   const name = itemName.toLowerCase();
   if (name.match(/gatorade|water|soda|coke|sprite|drink|juice|punch/)) return 'Drinks';
@@ -20,29 +19,56 @@ const guessCategory = (itemName) => {
 export function usePOSData() {
   const [inventory, setInventory] = useState([]);
   const [history, setHistory] = useState([]);
+  const [archives, setArchives] = useState([]); // <-- NEW
 
   useEffect(() => {
     const savedInventory = localStorage.getItem('pos_inventory');
     const savedHistory = localStorage.getItem('pos_history');
+    const savedArchives = localStorage.getItem('pos_archives'); // <-- NEW
 
     if (savedInventory) {
-      // Auto-migrate old data to have the new category field
       const parsed = JSON.parse(savedInventory);
       const migrated = parsed.map(item => ({
         ...item,
         category: item.category || guessCategory(item.name)
       }));
       setInventory(migrated);
-      localStorage.setItem('pos_inventory', JSON.stringify(migrated)); // Save migration
+      localStorage.setItem('pos_inventory', JSON.stringify(migrated));
     } else {
       setInventory(DEFAULT_INVENTORY);
       localStorage.setItem('pos_inventory', JSON.stringify(DEFAULT_INVENTORY));
     }
 
-    if (savedHistory) {
-      setHistory(JSON.parse(savedHistory));
-    }
+    if (savedHistory) setHistory(JSON.parse(savedHistory));
+    if (savedArchives) setArchives(JSON.parse(savedArchives)); // <-- NEW
   }, []);
+
+  // NEW: Archive the current shift and reset history
+  const archiveCurrentShift = () => {
+    if (history.length === 0) return;
+
+    const itemSales = history.reduce((acc, txn) => {
+      txn.itemsSold.forEach(name => { acc[name] = (acc[name] || 0) + 1; });
+      return acc;
+    }, {});
+
+    const shiftSummary = {
+      id: Date.now().toString(),
+      date: new Date().toLocaleDateString(),
+      time: new Date().toLocaleTimeString(),
+      revenue: history.reduce((sum, txn) => sum + txn.total, 0),
+      transactionCount: history.length,
+      itemsSold: itemSales
+    };
+
+    const updatedArchives = [...archives, shiftSummary];
+    
+    setArchives(updatedArchives);
+    setHistory([]); // Clear live dashboard
+    
+    localStorage.setItem('pos_archives', JSON.stringify(updatedArchives));
+    localStorage.setItem('pos_history', JSON.stringify([])); // Reset saved history
+  };
 
   const deleteTransaction = (transactionId) => {
     const txnToDelete = history.find(t => t.id === transactionId);
@@ -53,9 +79,7 @@ export function usePOSData() {
     }, {});
 
     const updatedInventory = inventory.map(item => {
-      if (itemsToRestock[item.name]) {
-        return { ...item, stock: item.stock + itemsToRestock[item.name] };
-      }
+      if (itemsToRestock[item.name]) return { ...item, stock: item.stock + itemsToRestock[item.name] };
       return item;
     });
 
@@ -67,7 +91,6 @@ export function usePOSData() {
     localStorage.setItem('pos_history', JSON.stringify(updatedHistory));
   };
 
-  // NEW: Remove a single item from a transaction
   const removeTransactionItem = (transactionId, itemNameToRemove) => {
     const txnIndex = history.findIndex(t => t.id === transactionId);
     if (txnIndex === -1) return;
@@ -76,27 +99,22 @@ export function usePOSData() {
     const itemIndex = txn.itemsSold.indexOf(itemNameToRemove);
     if (itemIndex === -1) return;
 
-    // Find the current price to deduct
     const currentItem = inventory.find(i => i.name === itemNameToRemove);
     const priceToDeduct = currentItem ? currentItem.price : 0;
 
-    // Remove 1 instance of the item and deduct total
     txn.itemsSold.splice(itemIndex, 1);
     txn.total = Math.max(0, txn.total - priceToDeduct);
 
     let updatedHistory;
     if (txn.itemsSold.length === 0) {
-      updatedHistory = history.filter(t => t.id !== transactionId); // Delete if empty
+      updatedHistory = history.filter(t => t.id !== transactionId); 
     } else {
       updatedHistory = [...history];
       updatedHistory[txnIndex] = txn;
     }
 
-    // Restock the item
     const updatedInventory = inventory.map(item => {
-      if (item.name === itemNameToRemove) {
-        return { ...item, stock: item.stock + 1 };
-      }
+      if (item.name === itemNameToRemove) return { ...item, stock: item.stock + 1 };
       return item;
     });
 
@@ -129,11 +147,8 @@ export function usePOSData() {
 
   const saveInventoryItem = (newItem, isRestock) => {
     let updatedInventory;
-    if (isRestock) {
-      updatedInventory = inventory.map(item => item.id === newItem.id ? newItem : item);
-    } else {
-      updatedInventory = [...inventory, newItem];
-    }
+    if (isRestock) updatedInventory = inventory.map(item => item.id === newItem.id ? newItem : item);
+    else updatedInventory = [...inventory, newItem];
     setInventory(updatedInventory);
     localStorage.setItem('pos_inventory', JSON.stringify(updatedInventory));
   };
@@ -150,11 +165,45 @@ export function usePOSData() {
     localStorage.setItem('pos_inventory', JSON.stringify(newInventory));
   };
 
-  const exportData = () => { /* ... existing export ... */ };
-  const importData = (jsonString) => { /* ... existing import ... */ };
+  // UPDATED: Now includes archives in the backup
+  const exportData = () => { 
+    const data = { inventory, history, archives };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `concession-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // UPDATED: Now restores archives from backup
+  const importData = (jsonString) => { 
+    try {
+      const parsedData = JSON.parse(jsonString);
+      if (parsedData.inventory && parsedData.history) {
+        setInventory(parsedData.inventory);
+        setHistory(parsedData.history);
+        localStorage.setItem('pos_inventory', JSON.stringify(parsedData.inventory));
+        localStorage.setItem('pos_history', JSON.stringify(parsedData.history));
+        
+        if (parsedData.archives) {
+          setArchives(parsedData.archives);
+          localStorage.setItem('pos_archives', JSON.stringify(parsedData.archives));
+        }
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Failed to parse backup file", error);
+      return false; 
+    }
+  };
 
   return { 
-    inventory, history, confirmTransaction, saveInventoryItem, updateItem, 
-    deleteItem, exportData, importData, deleteTransaction, removeTransactionItem
+    inventory, history, archives, confirmTransaction, saveInventoryItem, updateItem, 
+    deleteItem, exportData, importData, deleteTransaction, removeTransactionItem, archiveCurrentShift
   };
 }

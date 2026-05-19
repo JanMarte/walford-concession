@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Camera, LayoutDashboard, ShoppingCart, X } from 'lucide-react'; // <-- Added ShoppingCart and X
+import { Camera, LayoutDashboard, ShoppingCart, X } from 'lucide-react'; 
 import { usePOSData } from './hooks/usePOSData';
 import ItemGrid from './components/ItemGrid';
 import CheckoutModal from './components/CheckoutModal';
@@ -7,18 +7,15 @@ import ScannerModal from './components/ScannerModal';
 import Dashboard from './components/Dashboard';
 
 function App() {
-  const { inventory, history, confirmTransaction, saveInventoryItem, updateItem, deleteItem, exportData, importData, deleteTransaction, removeTransactionItem } = usePOSData();
+  // NEW: Pulling in archives and archiveCurrentShift
+  const { inventory, history, archives, confirmTransaction, saveInventoryItem, updateItem, deleteItem, exportData, importData, deleteTransaction, removeTransactionItem, archiveCurrentShift } = usePOSData();
   
   const [cart, setCart] = useState([]);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [currentView, setCurrentView] = useState('pos');
-  
-  // NEW: State for the category filter
-  const [activeFilter, setActiveFilter] = useState('All');
-  
-  // NEW: State to control the mobile slide-up cart
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false); 
+  const [activeFilter, setActiveFilter] = useState('All');
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price, 0);
 
@@ -39,11 +36,8 @@ function App() {
 
   const groupedCart = cart.reduce((acc, item) => {
     const existingItem = acc.find(i => i.item.id === item.id);
-    if (existingItem) {
-      existingItem.qty += 1;
-    } else {
-      acc.push({ item, qty: 1 });
-    }
+    if (existingItem) existingItem.qty += 1;
+    else acc.push({ item, qty: 1 });
     return acc;
   }, []);
 
@@ -52,13 +46,15 @@ function App() {
       <Dashboard 
         inventory={inventory} 
         history={history} 
+        archives={archives} // <-- NEW
         updateItem={updateItem} 
         deleteItem={deleteItem}
         saveInventoryItem={saveInventoryItem}
         exportData={exportData} 
         importData={importData} 
         deleteTransaction={deleteTransaction} 
-        removeTransactionItem={removeTransactionItem} // <-- Added here
+        removeTransactionItem={removeTransactionItem}
+        archiveCurrentShift={archiveCurrentShift} // <-- NEW
         onBack={() => setCurrentView('pos')} 
       />
     );
