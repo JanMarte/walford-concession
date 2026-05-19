@@ -1,112 +1,88 @@
 import React, { useState } from 'react';
+import { X } from 'lucide-react';
 
-export default function CheckoutModal({ cartTotal, onConfirm, onCancel }) {
-  const [cashGiven, setCashGiven] = useState(0);
-  const [customInput, setCustomInput] = useState('');
+export default function CheckoutModal({ cartTotal, onCancel, onConfirm }) {
+  const [amountGiven, setAmountGiven] = useState('');
 
-  // Generate logical quick cash buttons based on the total
-  const getQuickCashOptions = (total) => {
-    const options = [total]; // Always offer "Exact Change"
-    
-    // Add standard bills that are larger than the total
-    if (total < 5) options.push(5);
-    if (total < 10) options.push(10);
-    if (total < 20) options.push(20);
-    if (total < 50) options.push(50);
-    
-    // Remove duplicates and sort
-    return [...new Set(options)].sort((a, b) => a - b);
-  };
+  // DYNAMIC MATH: Calculate the logical next bills based on the total
+  const exact = cartTotal;
+  const nextDollar = Math.ceil(cartTotal);
+  const nextFive = Math.ceil(cartTotal / 5) * 5 || 5;
+  const nextTen = Math.ceil(cartTotal / 10) * 10 || 10;
+  const nextTwenty = Math.ceil(cartTotal / 20) * 20 || 20;
 
-  const quickOptions = getQuickCashOptions(cartTotal);
-  
-  // Calculate change (only if they've given enough cash)
-  const changeDue = cashGiven >= cartTotal ? cashGiven - cartTotal : 0;
-  const isEnoughCash = cashGiven >= cartTotal;
+  // Remove duplicates (e.g. if total is $5, nextFive and exact are the same)
+  const quickAmounts = [...new Set([exact, nextDollar, nextFive, nextTen, nextTwenty])]
+    .filter(amt => amt >= cartTotal)
+    .sort((a, b) => a - b);
 
-  const handleCustomInput = (e) => {
-    const value = e.target.value;
-    setCustomInput(value);
-    setCashGiven(parseFloat(value) || 0);
-  };
-
-  const handleQuickCash = (amount) => {
-    setCashGiven(amount);
-    setCustomInput(''); // Clear custom input if they use a quick button
-  };
+  const changeDue = amountGiven ? (parseFloat(amountGiven) - cartTotal) : 0;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center p-4 z-50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8 text-center flex flex-col max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90dvh] overflow-hidden">
         
-        <h2 className="text-gray-400 font-bold uppercase tracking-widest text-sm mb-2">Total Due</h2>
-        <div className="text-7xl font-black text-gray-900 mb-8 tracking-tighter">
-          ${cartTotal.toFixed(2)}
-        </div>
-
-        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Select Cash Received</h3>
-        
-        {/* Quick Cash Grid */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          {quickOptions.map(amount => (
-            <button 
-              key={amount}
-              onClick={() => handleQuickCash(amount)}
-              className={`py-5 rounded-xl font-black text-2xl transition-all border-4 ${
-                cashGiven === amount 
-                  ? 'bg-blue-100 border-blue-600 text-blue-700' 
-                  : 'bg-gray-50 border-transparent text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              {amount === cartTotal ? "Exact" : `$${amount.toFixed(2)}`}
-            </button>
-          ))}
-        </div>
-
-        {/* Custom Amount Input */}
-        <div className="mb-8">
-          <input 
-            type="number" 
-            placeholder="Or enter custom amount..."
-            value={customInput}
-            onChange={handleCustomInput}
-            className="w-full bg-gray-50 border-2 border-gray-200 p-4 rounded-xl text-center text-xl font-bold focus:border-blue-500 focus:outline-none transition-colors"
-          />
-        </div>
-
-        {/* The Change Calculator Display */}
-        <div className={`p-8 rounded-2xl mb-8 transition-colors border-4 ${
-          isEnoughCash && cashGiven > 0 ? 'bg-green-50 border-green-500' : 'bg-gray-50 border-gray-200'
-        }`}>
-          <div className={`text-sm font-bold uppercase tracking-wider mb-2 ${
-            isEnoughCash && cashGiven > 0 ? 'text-green-700' : 'text-gray-500'
-          }`}>
-            Change Due
-          </div>
-          <div className={`text-6xl font-black tracking-tighter ${
-             isEnoughCash && cashGiven > 0 ? 'text-green-600' : 'text-gray-300'
-          }`}>
-            {cashGiven === 0 ? "$0.00" : `$${changeDue.toFixed(2)}`}
-          </div>
-        </div>
-
-        {/* Final Action Buttons */}
-        <div className="flex gap-4 mt-auto">
-          <button 
-            onClick={onCancel}
-            className="w-1/3 bg-red-50 text-red-600 hover:bg-red-100 py-5 font-bold text-xl rounded-xl transition-colors"
-          >
-            Cancel
+        {/* Header */}
+        <div className="bg-gray-900 p-4 flex justify-between items-center text-white">
+          <h2 className="text-xl font-black tracking-widest uppercase">Checkout</h2>
+          <button onClick={onCancel} className="bg-gray-800 p-2 rounded-lg active:bg-gray-700">
+            <X size={20} />
           </button>
+        </div>
+
+        {/* Scrollable Content */}
+        <div className="p-6 overflow-y-auto">
+          <div className="text-center mb-6">
+            <div className="text-gray-500 font-bold uppercase tracking-widest text-sm mb-1">Total Due</div>
+            <div className="text-6xl font-black text-green-600">${cartTotal.toFixed(2)}</div>
+          </div>
+
+          <div className="mb-4">
+            <label className="text-sm font-bold text-gray-500 uppercase">Quick Cash Given</label>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {quickAmounts.map(amt => (
+                <button 
+                  key={amt}
+                  onClick={() => setAmountGiven(amt.toString())}
+                  className="flex-1 bg-blue-100 text-blue-700 font-black text-xl py-3 rounded-xl active:bg-blue-200 border-2 border-blue-200 transition-colors"
+                >
+                  ${amt.toFixed(2)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <label className="text-sm font-bold text-gray-500 uppercase">Custom Amount</label>
+            <div className="relative mt-2">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-black text-xl">$</span>
+              <input 
+                type="number" 
+                value={amountGiven}
+                onChange={(e) => setAmountGiven(e.target.value)}
+                className="w-full bg-gray-50 border-2 border-gray-200 rounded-xl py-4 pl-10 pr-4 text-2xl font-black outline-none focus:border-blue-500"
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+
+          {amountGiven !== '' && parseFloat(amountGiven) >= cartTotal && (
+            <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 text-center mb-4">
+              <div className="text-green-800 font-bold uppercase text-sm mb-1">Change to return</div>
+              <div className="text-4xl font-black text-green-600">${changeDue.toFixed(2)}</div>
+            </div>
+          )}
+        </div>
+
+        {/* Sticky Footer */}
+        <div className="p-4 border-t border-gray-100 bg-gray-50">
           <button 
             onClick={onConfirm}
-            disabled={!isEnoughCash} 
-            className="w-2/3 bg-green-600 text-white py-5 font-black text-2xl rounded-xl disabled:opacity-50 disabled:bg-gray-400 transition-all hover:bg-green-700 active:scale-95 shadow-lg shadow-green-600/30"
+            className="w-full bg-gray-900 text-white py-4 rounded-xl font-black text-2xl tracking-wide active:scale-95 transition-transform"
           >
-            Confirm Sale
+            CONFIRM SALE
           </button>
         </div>
-
       </div>
     </div>
   );

@@ -30,6 +30,34 @@ export function usePOSData() {
     }
   }, []);
 
+  // FIXED: Moved this inside the usePOSData hook!
+  const deleteTransaction = (transactionId) => {
+    const txnToDelete = history.find(t => t.id === transactionId);
+    if (!txnToDelete) return;
+
+    // 1. Figure out how many of each item needs to go back
+    const itemsToRestock = txnToDelete.itemsSold.reduce((acc, name) => {
+      acc[name] = (acc[name] || 0) + 1;
+      return acc;
+    }, {});
+
+    // 2. Put them back in inventory
+    const updatedInventory = inventory.map(item => {
+      if (itemsToRestock[item.name]) {
+        return { ...item, stock: item.stock + itemsToRestock[item.name] };
+      }
+      return item;
+    });
+
+    // 3. Remove from history
+    const updatedHistory = history.filter(t => t.id !== transactionId);
+
+    setInventory(updatedInventory);
+    setHistory(updatedHistory);
+    localStorage.setItem('pos_inventory', JSON.stringify(updatedInventory));
+    localStorage.setItem('pos_history', JSON.stringify(updatedHistory));
+  };
+
   const confirmTransaction = (cartItems, cartTotal) => {
     const updatedInventory = inventory.map(item => {
       const amountInCart = cartItems.filter(cartItem => cartItem.id === item.id).length;
@@ -128,6 +156,7 @@ export function usePOSData() {
     updateItem, 
     deleteItem,
     exportData,
-    importData
+    importData,
+    deleteTransaction
   };
 }

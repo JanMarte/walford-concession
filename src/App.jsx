@@ -7,12 +7,15 @@ import ScannerModal from './components/ScannerModal';
 import Dashboard from './components/Dashboard';
 
 function App() {
-  const { inventory, history, confirmTransaction, saveInventoryItem, updateItem, deleteItem, exportData, importData } = usePOSData();
+  const { inventory, history, confirmTransaction, saveInventoryItem, updateItem, deleteItem, exportData, importData, deleteTransaction } = usePOSData();
   
   const [cart, setCart] = useState([]);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [currentView, setCurrentView] = useState('pos');
+  
+  // NEW: State for the category filter
+  const [activeFilter, setActiveFilter] = useState('All');
   
   // NEW: State to control the mobile slide-up cart
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false); 
@@ -54,6 +57,7 @@ function App() {
         saveInventoryItem={saveInventoryItem}
         exportData={exportData} 
         importData={importData} 
+        deleteTransaction={deleteTransaction} // <-- Pass the refund power here!
         onBack={() => setCurrentView('pos')} 
       />
     );
@@ -87,7 +91,24 @@ function App() {
           </div>
         </div>
         
-        <ItemGrid inventory={inventory} onAddToCart={addToCart} cart={cart} />
+        {/* NEW FILTER BUTTONS */}
+        <div className="flex gap-2 overflow-x-auto pb-4 mb-4 border-b border-gray-200 snap-x hide-scrollbar">
+          {['All', 'Snacks', 'Drinks', 'Sweets'].map(filter => (
+            <button
+              key={filter}
+              onClick={() => setActiveFilter(filter)}
+              className={`whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-colors snap-start ${
+                activeFilter === filter 
+                ? 'bg-blue-600 text-white shadow-md' 
+                : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              {filter}
+            </button>
+          ))}
+        </div>
+        
+        <ItemGrid inventory={inventory} onAddToCart={addToCart} cart={cart} activeFilter={activeFilter} />
       </div>
 
       {/* NEW: THE FLOATING MOBILE CART BUTTON */}

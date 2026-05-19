@@ -62,6 +62,14 @@ export default function Dashboard({ inventory, history, updateItem, deleteItem, 
     </div>
   );
 
+  // Calculate Data for the Chart
+  const itemSales = history.reduce((acc, txn) => {
+    txn.itemsSold.forEach(name => { acc[name] = (acc[name] || 0) + 1; });
+    return acc;
+  }, {});
+  const sortedSales = Object.entries(itemSales).sort((a, b) => b[1] - a[1]);
+  const maxSales = sortedSales.length > 0 ? sortedSales[0][1] : 1;
+
   return (
     // FIX 2: h-[100dvh] for mobile dashboard
     <div className="h-[100dvh] w-full bg-gray-50 flex flex-col overflow-hidden absolute inset-0 z-40">
@@ -103,6 +111,21 @@ export default function Dashboard({ inventory, history, updateItem, deleteItem, 
             <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Total Revenue</h2>
             <div className="text-5xl lg:text-6xl font-black text-green-600">${totalRevenue.toFixed(2)}</div>
             <div className="text-sm text-gray-500 font-medium mt-2">{history.length} Transactions Today</div>
+            {/* NEW VISUAL BAR CHART */}
+            <div className="mt-6 border-t border-gray-100 pt-4">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Item Sales Graph</h3>
+              <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
+                {sortedSales.map(([name, qty]) => (
+                  <div key={name} className="flex items-center gap-3">
+                    <div className="w-24 text-xs font-bold text-gray-700 truncate">{name}</div>
+                    <div className="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
+                      <div className="bg-blue-500 h-full rounded-full" style={{ width: `${(qty / maxSales) * 100}%` }}></div>
+                    </div>
+                    <div className="w-8 text-right text-xs font-bold text-gray-500">{qty}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           <SectionHeader id="history" title="Transaction Log" />
@@ -113,13 +136,26 @@ export default function Dashboard({ inventory, history, updateItem, deleteItem, 
                 <div className="text-gray-400 text-center mt-10">No sales yet.</div>
               ) : (
                 [...history].reverse().map(txn => (
-                  <div key={txn.id} className="border-b border-gray-100 last:border-0 py-3">
-                    <div className="flex justify-between font-bold text-gray-800">
-                      <span>Order #{txn.id.slice(-4)}</span>
-                      <span className="text-green-600">${txn.total.toFixed(2)}</span>
+                  <div key={txn.id} className="border-b border-gray-100 last:border-0 py-3 flex justify-between items-center gap-4">
+                    <div className="flex-1">
+                      <div className="flex justify-between font-bold text-gray-800">
+                        <span>Order #{txn.id.slice(-4)}</span>
+                        <span className="text-green-600">${txn.total.toFixed(2)}</span>
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">{txn.time}</div>
+                      <div className="text-sm text-gray-500 mt-1">{formatItemsSold(txn.itemsSold)}</div>
                     </div>
-                    <div className="text-xs text-gray-400 mt-1">{txn.time}</div>
-                    <div className="text-sm text-gray-500 mt-1">{formatItemsSold(txn.itemsSold)}</div>
+                    {/* THE NEW REFUND BUTTON */}
+                    <button 
+                      onClick={() => {
+                        if(window.confirm(`Refund Order #${txn.id.slice(-4)} for $${txn.total.toFixed(2)}? Items will return to stock.`)) {
+                          deleteTransaction(txn.id);
+                        }
+                      }}
+                      className="bg-red-50 text-red-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors h-fit whitespace-nowrap"
+                    >
+                      Refund
+                    </button>
                   </div>
                 ))
               )}
