@@ -1,34 +1,25 @@
 import React from 'react';
 
-// SMART FILTER: Guesses category based on name so you don't have to edit database!
-const getCategory = (itemName) => {
-  const name = itemName.toLowerCase();
-  if (name.match(/gatorade|water|soda|coke|sprite|drink|juice|punch/)) return 'Drinks';
-  if (name.match(/ring pop|candy|skittles|chocolate|cookie|sweet|m&m|snickers/)) return 'Sweets';
-  return 'Snacks'; 
-};
-
 export default function ItemGrid({ inventory, onAddToCart, cart, activeFilter }) {
   
-  // Sort items: Put matching items at the top
+  // Sort items: Put matching items at the top based on their actual database category
   const sortedInventory = [...inventory].sort((a, b) => {
     if (activeFilter === 'All') return 0;
-    const aMatch = getCategory(a.name) === activeFilter;
-    const bMatch = getCategory(b.name) === activeFilter;
+    const aMatch = a.category === activeFilter;
+    const bMatch = b.category === activeFilter;
     if (aMatch && !bMatch) return -1;
     if (!aMatch && bMatch) return 1;
-    return 0; // Keep original order for the rest
+    return 0; 
   });
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 pb-24">
       {sortedInventory.map(item => {
-        // Count how many of this item are currently in the cart
         const inCartCount = cart.filter(c => c.id === item.id).length;
         const isOutOfStock = item.stock <= inCartCount;
         
-        // Determine if it should be highlighted based on the filter
-        const isHighlighted = activeFilter !== 'All' && getCategory(item.name) === activeFilter;
+        // Highlight based on actual category
+        const isHighlighted = activeFilter !== 'All' && item.category === activeFilter;
         const isFaded = activeFilter !== 'All' && !isHighlighted;
 
         return (
@@ -46,12 +37,10 @@ export default function ItemGrid({ inventory, onAddToCart, cart, activeFilter })
             <div className="font-bold text-gray-800 leading-tight">{item.name}</div>
             <div className="text-green-600 font-black mt-2">${item.price.toFixed(2)}</div>
             
-            {/* Stock indicator */}
             <div className={`absolute top-2 right-2 text-xs font-bold px-2 py-1 rounded-full ${isOutOfStock ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
               {item.stock - inCartCount}
             </div>
             
-            {/* Cart indicator badge */}
             {inCartCount > 0 && (
               <div className="absolute -top-2 -left-2 bg-blue-600 text-white text-xs font-black h-6 w-6 flex items-center justify-center rounded-full border-2 border-white">
                 {inCartCount}

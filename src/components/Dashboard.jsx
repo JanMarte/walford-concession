@@ -1,26 +1,18 @@
 import React, { useState, useRef } from 'react';
-import { ArrowLeft, Trash2, Plus, Download, Upload, ChevronDown, ChevronUp } from 'lucide-react'; // <-- Added Chevrons
+import { ArrowLeft, Trash2, Plus, Download, Upload, ChevronDown, ChevronUp } from 'lucide-react';
 
-export default function Dashboard({ inventory, history, updateItem, deleteItem, saveInventoryItem, exportData, importData, onBack, deleteTransaction }) {
+export default function Dashboard({ inventory, history, updateItem, deleteItem, saveInventoryItem, exportData, importData, onBack, deleteTransaction, removeTransactionItem }) {
   const fileInputRef = useRef(null);
   
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
   const [newPrice, setNewPrice] = useState('');
   const [newStock, setNewStock] = useState('');
+  const [newCategory, setNewCategory] = useState('Snacks'); // <-- NEW
 
-  // NEW: State for mobile accordions (Inventory open by default)
-  const [openSection, setOpenSection] = useState('inventory'); // 'analytics', 'history', or 'inventory'
+  const [openSection, setOpenSection] = useState('inventory');
 
   const totalRevenue = history.reduce((sum, txn) => sum + txn.total, 0);
-
-  const formatItemsSold = (itemsArray) => {
-    const counts = itemsArray.reduce((acc, name) => {
-      acc[name] = (acc[name] || 0) + 1;
-      return acc;
-    }, {});
-    return Object.entries(counts).map(([name, qty]) => `${qty}x ${name}`).join(', ');
-  };
 
   const handleAddItem = (e) => {
     e.preventDefault();
@@ -30,9 +22,10 @@ export default function Dashboard({ inventory, history, updateItem, deleteItem, 
       name: newName,
       price: parseFloat(newPrice),
       stock: parseInt(newStock),
+      category: newCategory, // <-- NEW
       barcode: "" 
     }, false); 
-    setNewName(''); setNewPrice(''); setNewStock(''); setIsAdding(false); 
+    setNewName(''); setNewPrice(''); setNewStock(''); setNewCategory('Snacks'); setIsAdding(false); 
   };
 
   const handleFileUpload = (e) => {
@@ -48,12 +41,8 @@ export default function Dashboard({ inventory, history, updateItem, deleteItem, 
     reader.readAsText(file);
   };
 
-  // Helper component for mobile accordion headers
   const SectionHeader = ({ id, title, badge }) => (
-    <div 
-      onClick={() => setOpenSection(openSection === id ? null : id)}
-      className="lg:hidden bg-white p-4 border-b border-gray-200 flex justify-between items-center font-bold text-gray-800 active:bg-gray-50"
-    >
+    <div onClick={() => setOpenSection(openSection === id ? null : id)} className="lg:hidden bg-white p-4 border-b border-gray-200 flex justify-between items-center font-bold text-gray-800 active:bg-gray-50">
       <div className="flex items-center gap-3">
         {title}
         {badge && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">{badge}</span>}
@@ -62,7 +51,6 @@ export default function Dashboard({ inventory, history, updateItem, deleteItem, 
     </div>
   );
 
-  // Calculate Data for the Chart
   const itemSales = history.reduce((acc, txn) => {
     txn.itemsSold.forEach(name => { acc[name] = (acc[name] || 0) + 1; });
     return acc;
@@ -71,16 +59,11 @@ export default function Dashboard({ inventory, history, updateItem, deleteItem, 
   const maxSales = sortedSales.length > 0 ? sortedSales[0][1] : 1;
 
   return (
-    // FIX 2: h-[100dvh] for mobile dashboard
     <div className="h-[100dvh] w-full bg-gray-50 flex flex-col overflow-hidden absolute inset-0 z-40">
       
-      {/* Top Navigation Bar */}
       <div className="bg-gray-900 text-white p-4 flex flex-wrap items-center justify-between shadow-md gap-3 z-10">
         <div className="flex items-center gap-3">
-          <button 
-            onClick={onBack}
-            className="flex items-center justify-center h-10 w-10 sm:w-auto sm:px-4 bg-gray-800 hover:bg-gray-700 rounded-lg font-bold transition-colors"
-          >
+          <button onClick={onBack} className="flex items-center justify-center h-10 w-10 sm:w-auto sm:px-4 bg-gray-800 hover:bg-gray-700 rounded-lg font-bold transition-colors">
             <ArrowLeft size={20} />
             <span className="hidden sm:inline sm:ml-2">Register</span>
           </button>
@@ -100,18 +83,15 @@ export default function Dashboard({ inventory, history, updateItem, deleteItem, 
         </div>
       </div>
 
-      {/* Main Content Area - Scrollable on mobile, split on desktop */}
       <div className="flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row lg:p-6 lg:gap-6 bg-gray-100 lg:bg-transparent">
         
-        {/* LEFT/TOP COLUMN: Analytics & History */}
+        {/* LEFT COLUMN: Analytics & History */}
         <div className="w-full lg:w-1/3 flex flex-col lg:gap-6">
-          
           <SectionHeader id="analytics" title="Analytics Overview" />
           <div className={`${openSection === 'analytics' ? 'block' : 'hidden'} lg:block bg-white lg:rounded-2xl p-6 shadow-sm border-b lg:border border-gray-200`}>
             <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Total Revenue</h2>
             <div className="text-5xl lg:text-6xl font-black text-green-600">${totalRevenue.toFixed(2)}</div>
             <div className="text-sm text-gray-500 font-medium mt-2">{history.length} Transactions Today</div>
-            {/* NEW VISUAL BAR CHART */}
             <div className="mt-6 border-t border-gray-100 pt-4">
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Item Sales Graph</h3>
               <div className="space-y-3 max-h-48 overflow-y-auto pr-2">
@@ -135,37 +115,66 @@ export default function Dashboard({ inventory, history, updateItem, deleteItem, 
               {history.length === 0 ? (
                 <div className="text-gray-400 text-center mt-10">No sales yet.</div>
               ) : (
-                [...history].reverse().map(txn => (
-                  <div key={txn.id} className="border-b border-gray-100 last:border-0 py-3 flex justify-between items-center gap-4">
-                    <div className="flex-1">
-                      <div className="flex justify-between font-bold text-gray-800">
-                        <span>Order #{txn.id.slice(-4)}</span>
-                        <span className="text-green-600">${txn.total.toFixed(2)}</span>
+                [...history].reverse().map(txn => {
+                  // Count up items for this transaction for individual returns
+                  const itemCounts = txn.itemsSold.reduce((acc, name) => {
+                    acc[name] = (acc[name] || 0) + 1; return acc;
+                  }, {});
+
+                  return (
+                    <div key={txn.id} className="border-b border-gray-200 last:border-0 py-4">
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="flex-1">
+                          <div className="flex justify-between font-black text-gray-800 text-lg">
+                            <span>Order #{txn.id.slice(-4)}</span>
+                            <span className="text-green-600">${txn.total.toFixed(2)}</span>
+                          </div>
+                          <div className="text-xs text-gray-400 mt-1 font-bold">{txn.time}</div>
+                          
+                          {/* NEW: Interactive Individual Items List */}
+                          <div className="mt-3 space-y-2">
+                            {Object.entries(itemCounts).map(([name, qty]) => (
+                              <div key={name} className="flex justify-between items-center bg-gray-50 p-2 rounded-lg border border-gray-100">
+                                <span className="font-medium text-gray-700 text-sm">{qty}x {name}</span>
+                                <button 
+                                  onClick={() => {
+                                    if(window.confirm(`Refund 1 ${name} from Order #${txn.id.slice(-4)}?`)) {
+                                      removeTransactionItem(txn.id, name);
+                                    }
+                                  }}
+                                  className="text-orange-600 bg-orange-100 px-3 py-1 rounded-md text-xs font-bold hover:bg-orange-200 transition-colors"
+                                >
+                                  Refund 1
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-400 mt-1">{txn.time}</div>
-                      <div className="text-sm text-gray-500 mt-1">{formatItemsSold(txn.itemsSold)}</div>
+                      
+                      {/* Entire Order Refund Button */}
+                      <div className="mt-3 text-right">
+                        <button 
+                          onClick={() => {
+                            if(window.confirm(`VOID ENTIRE ORDER #${txn.id.slice(-4)}? All items will return to stock.`)) {
+                              deleteTransaction(txn.id);
+                            }
+                          }}
+                          className="text-red-400 hover:text-red-600 text-xs font-bold uppercase tracking-wider underline"
+                        >
+                          Void Entire Order
+                        </button>
+                      </div>
                     </div>
-                    {/* THE NEW REFUND BUTTON */}
-                    <button 
-                      onClick={() => {
-                        if(window.confirm(`Refund Order #${txn.id.slice(-4)} for $${txn.total.toFixed(2)}? Items will return to stock.`)) {
-                          deleteTransaction(txn.id);
-                        }
-                      }}
-                      className="bg-red-50 text-red-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors h-fit whitespace-nowrap"
-                    >
-                      Refund
-                    </button>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
           </div>
         </div>
 
-        {/* RIGHT/BOTTOM COLUMN: Inventory Management */}
+        {/* RIGHT COLUMN: Inventory Management */}
         <div className="w-full lg:w-2/3 flex flex-col flex-1 pb-10 lg:pb-0">
-          
           <SectionHeader id="inventory" title="Live Inventory" badge={inventory.length} />
           
           <div className={`${openSection === 'inventory' ? 'flex' : 'hidden'} lg:flex flex-col flex-1 bg-white lg:rounded-2xl shadow-sm border-b lg:border border-gray-200 overflow-hidden`}>
@@ -184,12 +193,22 @@ export default function Dashboard({ inventory, history, updateItem, deleteItem, 
             </div>
             
             {isAdding && (
-              <form onSubmit={handleAddItem} className="bg-blue-50/50 p-4 border-b border-blue-100 flex flex-col sm:flex-row gap-4 sm:items-end">
-                <div className="flex-1">
-                  <label className="block text-xs font-bold text-blue-800 uppercase tracking-wider mb-1">Item Name</label>
-                  <input required autoFocus value={newName} onChange={e=>setNewName(e.target.value)} className="w-full border-2 border-blue-200 focus:border-blue-500 outline-none p-2 rounded-lg bg-white" placeholder="e.g., Pretzel" />
+              <form onSubmit={handleAddItem} className="bg-blue-50/50 p-4 border-b border-blue-100 flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1">
+                    <label className="block text-xs font-bold text-blue-800 uppercase tracking-wider mb-1">Item Name</label>
+                    <input required autoFocus value={newName} onChange={e=>setNewName(e.target.value)} className="w-full border-2 border-blue-200 focus:border-blue-500 outline-none p-2 rounded-lg bg-white" placeholder="e.g., Pretzel" />
+                  </div>
+                  <div className="w-full sm:w-40">
+                    <label className="block text-xs font-bold text-blue-800 uppercase tracking-wider mb-1">Category</label>
+                    <select value={newCategory} onChange={e=>setNewCategory(e.target.value)} className="w-full border-2 border-blue-200 focus:border-blue-500 outline-none p-2 rounded-lg bg-white font-bold text-gray-700">
+                      <option value="Snacks">Snacks</option>
+                      <option value="Drinks">Drinks</option>
+                      <option value="Sweets">Sweets</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="flex gap-4">
+                <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
                   <div className="flex-1 sm:w-32">
                     <label className="block text-xs font-bold text-blue-800 uppercase tracking-wider mb-1">Price ($)</label>
                     <input required type="number" step="0.01" min="0" value={newPrice} onChange={e=>setNewPrice(e.target.value)} className="w-full border-2 border-blue-200 focus:border-blue-500 outline-none p-2 rounded-lg bg-white" placeholder="0.00" />
@@ -198,23 +217,23 @@ export default function Dashboard({ inventory, history, updateItem, deleteItem, 
                     <label className="block text-xs font-bold text-blue-800 uppercase tracking-wider mb-1">Stock Qty</label>
                     <input required type="number" min="0" value={newStock} onChange={e=>setNewStock(e.target.value)} className="w-full border-2 border-blue-200 focus:border-blue-500 outline-none p-2 rounded-lg bg-white" placeholder="0" />
                   </div>
+                  <button type="submit" className="w-full sm:w-auto bg-blue-600 text-white font-bold px-8 py-2 rounded-lg h-[44px] hover:bg-blue-700 transition-all shadow-sm">
+                    Save Item
+                  </button>
                 </div>
-                <button type="submit" className="w-full sm:w-auto bg-blue-600 text-white font-bold px-6 py-2 rounded-lg h-[44px] hover:bg-blue-700 transition-all shadow-sm">
-                  Save
-                </button>
               </form>
             )}
 
-            {/* Mobile Card View / Desktop Table View */}
             <div className="flex-1 overflow-y-auto p-4 bg-gray-50 lg:bg-white">
               
-              {/* DESKTOP TABLE (Hidden on mobile) */}
+              {/* DESKTOP TABLE */}
               <table className="hidden lg:table w-full text-left border-collapse">
                 <thead>
                   <tr className="text-xs uppercase text-gray-400 border-b-2 border-gray-100">
-                    <th className="pb-3 font-bold">Item Name</th>
+                    <th className="pb-3 font-bold w-1/3">Item Name</th>
+                    <th className="pb-3 font-bold">Category</th>
                     <th className="pb-3 font-bold">Price ($)</th>
-                    <th className="pb-3 font-bold">Current Stock</th>
+                    <th className="pb-3 font-bold">Stock</th>
                     <th className="pb-3 font-bold text-center">Actions</th>
                   </tr>
                 </thead>
@@ -223,10 +242,21 @@ export default function Dashboard({ inventory, history, updateItem, deleteItem, 
                     <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                       <td className="py-4 font-bold text-gray-800">{item.name}</td>
                       <td className="py-4">
-                        <input type="number" step="0.01" value={item.price} onChange={(e) => updateItem({ ...item, price: parseFloat(e.target.value) || 0 })} className="w-24 border border-gray-300 rounded-lg p-2 text-center focus:border-blue-500 outline-none"/>
+                        <select 
+                          value={item.category || 'Snacks'} 
+                          onChange={(e) => updateItem({ ...item, category: e.target.value })}
+                          className="border border-gray-300 rounded-lg p-2 text-sm focus:border-blue-500 outline-none bg-white font-bold text-gray-600"
+                        >
+                          <option value="Snacks">Snacks</option>
+                          <option value="Drinks">Drinks</option>
+                          <option value="Sweets">Sweets</option>
+                        </select>
                       </td>
                       <td className="py-4">
-                        <input type="number" value={item.stock} onChange={(e) => updateItem({ ...item, stock: parseInt(e.target.value) || 0 })} className={`w-24 border rounded-lg p-2 text-center font-bold outline-none focus:border-blue-500 ${item.stock <= 0 ? 'bg-red-50 text-red-600 border-red-200' : 'border-gray-300'}`}/>
+                        <input type="number" step="0.01" value={item.price} onChange={(e) => updateItem({ ...item, price: parseFloat(e.target.value) || 0 })} className="w-20 border border-gray-300 rounded-lg p-2 text-center focus:border-blue-500 outline-none"/>
+                      </td>
+                      <td className="py-4">
+                        <input type="number" value={item.stock} onChange={(e) => updateItem({ ...item, stock: parseInt(e.target.value) || 0 })} className={`w-20 border rounded-lg p-2 text-center font-bold outline-none focus:border-blue-500 ${item.stock <= 0 ? 'bg-red-50 text-red-600 border-red-200' : 'border-gray-300'}`}/>
                       </td>
                       <td className="py-4 text-center">
                         <button onClick={() => { if(window.confirm(`Delete ${item.name}?`)) deleteItem(item.id); }} className="text-red-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors">
@@ -238,7 +268,7 @@ export default function Dashboard({ inventory, history, updateItem, deleteItem, 
                 </tbody>
               </table>
 
-              {/* MOBILE CARDS (Hidden on desktop) */}
+              {/* MOBILE CARDS */}
               <div className="lg:hidden flex flex-col gap-4">
                 {inventory.map(item => (
                   <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
@@ -248,15 +278,20 @@ export default function Dashboard({ inventory, history, updateItem, deleteItem, 
                         <Trash2 size={20} />
                       </button>
                     </div>
-                    <div className="flex gap-4">
-                      <div className="flex-1">
-                        <label className="text-xs font-bold text-gray-400 uppercase block mb-1">Price</label>
-                        <div className="flex items-center">
-                          <span className="text-gray-500 mr-1">$</span>
-                          <input type="number" step="0.01" value={item.price} onChange={(e) => updateItem({ ...item, price: parseFloat(e.target.value) || 0 })} className="w-full border border-gray-300 rounded-lg p-2 font-medium focus:border-blue-500 outline-none"/>
-                        </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-xs font-bold text-gray-400 uppercase block mb-1">Category</label>
+                        <select value={item.category || 'Snacks'} onChange={(e) => updateItem({ ...item, category: e.target.value })} className="w-full border border-gray-300 rounded-lg p-2 text-sm font-bold text-gray-600 focus:border-blue-500 outline-none bg-white">
+                          <option value="Snacks">Snacks</option>
+                          <option value="Drinks">Drinks</option>
+                          <option value="Sweets">Sweets</option>
+                        </select>
                       </div>
-                      <div className="flex-1">
+                      <div>
+                        <label className="text-xs font-bold text-gray-400 uppercase block mb-1">Price</label>
+                        <input type="number" step="0.01" value={item.price} onChange={(e) => updateItem({ ...item, price: parseFloat(e.target.value) || 0 })} className="w-full border border-gray-300 rounded-lg p-2 font-medium focus:border-blue-500 outline-none"/>
+                      </div>
+                      <div>
                         <label className="text-xs font-bold text-gray-400 uppercase block mb-1">Stock</label>
                         <input type="number" value={item.stock} onChange={(e) => updateItem({ ...item, stock: parseInt(e.target.value) || 0 })} className={`w-full border rounded-lg p-2 font-bold focus:border-blue-500 outline-none ${item.stock <= 0 ? 'bg-red-50 text-red-600 border-red-200' : 'border-gray-300'}`}/>
                       </div>

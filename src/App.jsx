@@ -7,7 +7,7 @@ import ScannerModal from './components/ScannerModal';
 import Dashboard from './components/Dashboard';
 
 function App() {
-  const { inventory, history, confirmTransaction, saveInventoryItem, updateItem, deleteItem, exportData, importData, deleteTransaction } = usePOSData();
+  const { inventory, history, confirmTransaction, saveInventoryItem, updateItem, deleteItem, exportData, importData, deleteTransaction, removeTransactionItem } = usePOSData();
   
   const [cart, setCart] = useState([]);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -57,7 +57,8 @@ function App() {
         saveInventoryItem={saveInventoryItem}
         exportData={exportData} 
         importData={importData} 
-        deleteTransaction={deleteTransaction} // <-- Pass the refund power here!
+        deleteTransaction={deleteTransaction} 
+        removeTransactionItem={removeTransactionItem} // <-- Added here
         onBack={() => setCurrentView('pos')} 
       />
     );
