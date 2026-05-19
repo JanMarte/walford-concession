@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { ArrowLeft, Trash2, Plus, Download, Upload, ChevronDown, ChevronUp } from 'lucide-react'; // <-- Added Chevrons
 
-export default function Dashboard({ inventory, history, updateItem, deleteItem, saveInventoryItem, exportData, importData, onBack }) {
+export default function Dashboard({ inventory, history, updateItem, deleteItem, saveInventoryItem, exportData, importData, onBack, deleteTransaction }) {
   const fileInputRef = useRef(null);
   
   const [isAdding, setIsAdding] = useState(false);
